@@ -5,108 +5,88 @@
 function createElement(tagName, props, ...children) {
   const element = document.createElement(tagName);
 
-  Object.entries(props || {})
-    .forEach(([key, value]) => {
-      element[key.toLowerCase()] = value;
-    });
+  Object.entries(props || {}).forEach(([key, value]) => {
+    element[key.toLowerCase()] = value;
+  });
 
-  children.flat()
-    .forEach((child) => {
-      if (child instanceof Node) {
-        element.appendChild(child);
-        return;
-      }
-      element.appendChild(document.createTextNode(child));
-    });
+  children.flat().forEach((child) => {
+    if (child instanceof Node) {
+      element.appendChild(child);
+      return;
+    }
+    element.appendChild(document.createTextNode(child));
+  });
 
   return element;
 }
 
-function curry(func) {
-  return function curried(...args) {
-    if (args.length >= func.length) {
-      return func.apply(this, args);
-    }
-    return function pass(...args2) {
-      return curried.apply(this, [...args, ...args2]);
-    };
-  };
+function or(x, y) {
+  return x === null ? y : x;
 }
 
-const operators = ['+', '-', '*', '/', '='];
-
-function calculate(x, f, y) {
-  return {
-    '+': x + y,
-    '-': x - y,
-    '*': x * y,
-    '/': x / y,
-    '=': x,
-  }[f];
+function defaultFunction(x, y) {
+  return or(y, x);
 }
 
-const curriedCalculate = curry(calculate);
-
-const initialState = {
-  acc: 0,
-  cur: 0,
-  calculating: curriedCalculate,
+const operatorFunctions = {
+  '+': (x, y) => x + y,
+  '-': (x, y) => x - y,
+  '*': (x, y) => x * y,
+  '/': (x, y) => x / y,
 };
 
-function render({ acc, cur, calculating }) {
-  const handleClickNumber = (number) => {
-    render({
-      acc: acc * 10 + number,
-      cur: acc === 0 ? number : acc * 10 + number,
-      calculating,
-    });
-  };
+function calculate(operator, accumulator, number) {
+  return (operatorFunctions[operator] || defaultFunction)(accumulator, number);
+}
 
-  const handleClickOperator = (operator) => {
-    const result = calculating(cur);
+const initialState = {
+  accumulator: 0,
+  number: 0,
+  operator: '',
+};
 
-    if (typeof result === 'number') {
-      render({
-        acc: 0,
-        cur: result,
-        calculating: operator === '='
-          ? curriedCalculate
-          : curriedCalculate(result, operator),
-      });
-      return;
-    }
-    render({
-      acc: 0,
-      cur,
-      calculating: calculating(cur, operator),
-    });
-  };
-
-  const handleClickReset = () => {
+function render({ accumulator, number, operator }) {
+  function handleClickReset() {
     render(initialState);
-  };
+  }
+
+  function handleClickNumber(value) {
+    render({
+      accumulator,
+      number: number * 10 + value,
+      operator,
+    });
+  }
+
+  function handleClickOperator(value) {
+    render({
+      accumulator: calculate(operator, accumulator, number),
+      number: null,
+      operator: value,
+    });
+  }
 
   const element = (
     <div>
       <p>간단 계산기</p>
-      <p>{cur}</p>
+      <p>{or(number, accumulator)}</p>
       <p>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
-          <button type="button" onClick={() => handleClickNumber(number)}>
-            {number}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((i) => (
+          <button type="button" onClick={() => handleClickNumber(i)}>
+            {i}
           </button>
         ))}
       </p>
       <p>
-        {operators.map((operator) => (
-          <button type="button" onClick={() => handleClickOperator(operator)}>
-            {operator}
+        {['+', '-', '*', '/', '='].map((i) => (
+          <button type="button" onClick={() => handleClickOperator(i)}>
+            {i}
           </button>
         ))}
       </p>
       <p>
         <button type="button" onClick={handleClickReset}>
-          Clear
+          Reset
         </button>
       </p>
     </div>
